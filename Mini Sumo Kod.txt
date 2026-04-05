@@ -1,0 +1,151 @@
+// --- DONANIM PİN TANIMLAMALARI ---
+#define remotePin 5
+#define rightPwmPin 9    // Sağ Motor Hız
+#define rightDirPin 10   // Sağ Motor Yön
+#define leftPwmPin 3     // Sol Motor Hız
+#define leftDirPin 11    // Sol Motor Yön
+
+#define lineRightPin A3
+#define lineLeftPin A4
+#define oppRightPin A2 
+#define oppLeftPin A5 
+
+// --- AYARLAR ---
+#define BLACK_LINE_THRESHOLD 400 
+#define ATTACK_SPEED 255
+#define SEARCH_SPEED 240
+#define TURN_SPEED 240
+
+bool systemActive = false;
+int sonGorulenYon = 0; // 0:Yok/Merkez, 1:Sol, 2:Sağ
+
+// --- MILLIS İÇİN GEREKLİ DEĞİŞKENLER ---
+unsigned long manevraZamanlayici = 0;
+int kacinmaAsamasi = 0; // 0: Normal, 1: Geri Git, 2: Dön
+int kacinmaYonu = 0;    // 1: Sola Dön, 2: Sağa Dön
+
+void setup() {
+  pinMode(remotePin, INPUT_PULLUP);
+  pinMode(oppRightPin, INPUT_PULLUP);
+  pinMode(oppLeftPin, INPUT_PULLUP);
+  
+  pinMode(rightPwmPin, OUTPUT);
+  pinMode(rightDirPin, OUTPUT);
+  pinMode(leftPwmPin, OUTPUT);
+  pinMode(leftDirPin, OUTPUT);
+  
+  stopMotors();
+}
+
+void loop() {
+  // --- 1. KUMANDA KONTROLÜ ---
+  if (digitalRead(remotePin) == LOW) { 
+    systemActive = !systemActive; 
+    stopMotors();
+    kacinmaAsamasi = 0; // Sistemi kapatırsak manevrayı da sıfırla
+    delay(500); 
+    while(digitalRead(remotePin) == LOW); 
+  }
+  
+  if (!systemActive) { 
+    stopMotors(); 
+    return; 
+  }
+
+  // --- SENSÖR OKUMALARI ---
+  int lineL = analogRead(lineLeftPin);
+  int lineR = analogRead(lineRightPin);
+  bool oppL = (digitalRead(oppLeftPin) == LOW); 
+  bool oppR = (digitalRead(oppRightPin) == LOW);
+
+  // --- ÖNCELİKLİ KARAR MEKANİZMASI ---
+
+  // ÖNCELİK 1: RAKİP ALGILAMA (Her Şeyden Üstündür)
+  if (oppL || oppR) {
+    kacinmaAsamasi = 0; // Rakip görüldüyse, çizgi manevrasını ANINDA İPTAL ET!
+    
+    if (oppL && oppR) {
+      moveForward(ATTACK_SPEED); 
+      sonGorulenYon = 0;
+    } else if (oppL) {
+      turnLeft(TURN_SPEED);      
+      sonGorulenYon = 1;
+    } else if (oppR) {
+      turnRight(TURN_SPEED);     
+      sonGorulenYon = 2;
+    }
+  } 
+  
+  // ÖNCELİK 2: ÇİZGİ KAÇIŞ MANEVRASI (Milis ile Gecikmesiz)
+  else if (kacinmaAsamasi > 0) {
+    // 1. Aşama: Geri Gitme (200ms)
+    if (kacinmaAsamasi == 1) {
+      moveBackward(255);
+      if (millis() - manevraZamanlayici >= 200) {
+        kacinmaAsamasi = 2; // Süre dolunca dönme aşamasına geç
+        manevraZamanlayici = millis(); // Kronometreyi sıfırla
+      }
+    }
+    // 2. Aşama: İçeri Dönme (200ms)
+    else if (kacinmaAsamasi == 2) {
+      if (kacinmaYonu == 1) turnLeft(200);
+      else turnRight(200);
+      
+      if (millis() - manevraZamanlayici >= 200) {
+        kacinmaAsamasi = 0; // Manevra tamamen bitti, arama moduna dön
+      }
+    }
+  }
+  
+  // ÖNCELİK 3: YENİ ÇİZGİ ALGILAMA TEKTİKLEMESİ
+  else if (lineL > BLACK_LINE_THRESHOLD || lineR > BLACK_LINE_THRESHOLD) {
+    kacinmaAsamasi = 1; // Manevrayı başlat
+    manevraZamanlayici = millis(); // Kronometreyi başlat
+    
+    // Hangi yöne döneceğini belirle
+    if (lineL > BLACK_LINE_THRESHOLD) kacinmaYonu = 2; // Sol gördü, sağa dönecek
+    else kacinmaYonu = 1; // Sağ gördü, sola dönecek
+  }
+
+  // ÖNCELİK 4: ARAMA (Zemin Beyaz, Rakip Yok, Çizgi Yok)
+  else {
+    if (sonGorulenYon == 1) turnLeft(SEARCH_SPEED);
+    else if (sonGorulenYon == 2) turnRight(SEARCH_SPEED);
+    else moveForward(SEARCH_SPEED); 
+  }
+}
+
+// --- MOTOR SÜRÜŞ FONKSİYONLARI ---
+
+void moveForward(int speed) {
+  digitalWrite(rightDirPin, HIGH); 
+  digitalWrite(leftDirPin, HIGH);   
+  analogWrite(rightPwmPin, speed);
+  analogWrite(leftPwmPin, speed); 
+}
+
+void moveBackward(int speed) {
+  digitalWrite(rightDirPin, LOW); 
+  digitalWrite(leftDirPin, LOW); 
+  analogWrite(rightPwmPin, speed);
+  analogWrite(leftPwmPin, speed);
+}
+
+void turnLeft(int speed) {
+  digitalWrite(rightDirPin, LOW); 
+  digitalWrite(leftDirPin, HIGH);  
+  analogWrite(rightPwmPin, speed);
+  analogWrite(leftPwmPin, speed); 
+}
+
+void turnRight(int speed) {
+  digitalWrite(rightDirPin, HIGH); 
+  digitalWrite(leftDirPin, LOW);   
+  analogWrite(rightPwmPin, speed);
+  analogWrite(leftPwmPin, speed); 
+}
+
+void stopMotors() {
+  analogWrite(rightPwmPin, 0);
+  analogWrite(leftPwmPin, 0);
+}
