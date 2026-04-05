@@ -14,3 +14,10 @@ Bu proje, 2026 MEB Robot Yarışması (Mini Sumo Kategorisi) için 2 kişilik bi
 ## 🛠️ Kullanılan Teknolojiler ve Donanımlar
 * **Yazılım:** C++ (Gömülü Sistem Programlama)
 * **Donanım Bileşenleri:** Mikrodenetleyici Arduino nano, Motor Sürücü, Omron E3Z-D62 Endüstriyel Cisim Sensörü, Çizgi Sensörleri QTR-A1, Li-Po Batarya.
+
+## 📸 Robot Görselleri / Devre Şeması
+![WhatsApp Image 2026-03-27 at 18 21 47](https://github.com/user-attachments/assets/aa9094fc-8645-464d-ad8f-8a4eb3ff6b8c)
+![WhatsApp Image 2026-03-27 at 18 21 44](https://github.com/user-attachments/assets/899ee604-eb0d-4b81-94a7-26af6d259083)
+
+
+
